@@ -20,12 +20,12 @@ namespace TestApplication
             {
                 
                 var logger = log4net.LogManager.GetLogger(typeof (Program));
-                log4net.ThreadContext.Properties["user-agent"] = "some cool user agent goes here";
-                log4net.ThreadContext.Properties["user-id"] = "USERIDGOESHERE";
-                log4net.ThreadContext.Properties["session-id"] = "SSESSIONIDGOESHERE";
+                log4net.ThreadContext.Properties["UserAgent"] = "some cool user agent goes here";
+                log4net.ThreadContext.Properties["UserId"] = "USERIDGOESHERE";
+                log4net.ThreadContext.Properties["SessionId"] = "SSESSIONIDGOESHERE";
 
                 var exc = new DllNotFoundException("this is some random exception!");
-                for (int x = 4000; x <= 5000; x++)
+                for (int x = 6000; x <= 7000; x++)
                 {
                     Console.WriteLine("Logging");
                     logger.Info("Info with exception" + x, exc);

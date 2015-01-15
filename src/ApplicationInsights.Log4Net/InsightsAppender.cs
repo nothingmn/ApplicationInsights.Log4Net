@@ -121,11 +121,15 @@ namespace ApplicationInsights.Log4Net
         {
             IDictionary<string, string> properties = trace.Context.Properties;
 
-            properties.Add("source-type", "Log4Net");
-            AddLoggingEventProperty("logger-name", loggingEvent.LoggerName, properties);
-            AddLoggingEventProperty("logging-level", loggingEvent.Level.ToString(), properties);
-            AddLoggingEventProperty("thread-name", loggingEvent.ThreadName, properties);
-            AddLoggingEventProperty("time-stamp", loggingEvent.TimeStamp.ToString((IFormatProvider)CultureInfo.InvariantCulture), properties);
+            properties.Add("SourceType", "Log4Net");
+            AddLoggingEventProperty("LoggerName", loggingEvent.LoggerName, properties);
+            AddLoggingEventProperty("LoggingLevel", loggingEvent.Level.ToString(), properties);
+            AddLoggingEventProperty("ThreadName", loggingEvent.ThreadName, properties);
+            AddLoggingEventProperty("TimeStamp", loggingEvent.TimeStamp.ToString((IFormatProvider)CultureInfo.InvariantCulture), properties);
+            AddLoggingEventProperty("UserName", loggingEvent.UserName, properties);
+            AddLoggingEventProperty("UserId", loggingEvent.UserName, properties);
+            AddLoggingEventProperty("Domain", loggingEvent.Domain, properties);
+            AddLoggingEventProperty("Identity", loggingEvent.Identity, properties);
 
             foreach (var p in log4net.ThreadContext.Properties.GetKeys())
             {
@@ -136,15 +140,15 @@ namespace ApplicationInsights.Log4Net
             LocationInfo locationInformation = loggingEvent.LocationInformation;
             if (locationInformation != null)
             {
-                AddLoggingEventProperty("class-name", locationInformation.ClassName, properties);
-                AddLoggingEventProperty("file-name", locationInformation.FileName, properties);
-                AddLoggingEventProperty("method-name", locationInformation.MethodName, properties);
-                AddLoggingEventProperty("line-number", locationInformation.LineNumber, properties);
+                AddLoggingEventProperty("ClassName", locationInformation.ClassName, properties);
+                AddLoggingEventProperty("FileName", locationInformation.FileName, properties);
+                AddLoggingEventProperty("MethodName", locationInformation.MethodName, properties);
+                AddLoggingEventProperty("LineNumber", locationInformation.LineNumber, properties);
             }
             
             if (loggingEvent.ExceptionObject != null)
             {
-                AddLoggingEventProperty("exception-message", loggingEvent.ExceptionObject.Message, properties);
+                AddLoggingEventProperty("ExceptionMessage", loggingEvent.ExceptionObject.Message, properties);
                 
                 if (loggingEvent.ExceptionObject.Data != null)
                 {
@@ -156,37 +160,34 @@ namespace ApplicationInsights.Log4Net
                     var data = sb.ToString();
                     if (!string.IsNullOrEmpty(data))
                     {
-                        AddLoggingEventProperty("exception-data", data, properties);
+                        AddLoggingEventProperty("ExceptionData", data, properties);
                     }
                 }
                 if (loggingEvent.ExceptionObject.TargetSite != null)
                 {
                     var site = string.Format("{0}.{1}", loggingEvent.ExceptionObject.TargetSite.ReflectedType, loggingEvent.ExceptionObject.TargetSite.Name);
                     
-                    AddLoggingEventProperty("exception-targetsite", site, properties);
+                    AddLoggingEventProperty("ExceptionTargetSite", site, properties);
                 }
-                if (loggingEvent.ExceptionObject.Source != null) AddLoggingEventProperty("exception-source", loggingEvent.ExceptionObject.Source, properties);
-                if (loggingEvent.ExceptionObject.StackTrace != null) AddLoggingEventProperty("exception-stacktrace", loggingEvent.ExceptionObject.StackTrace, properties);
-                AddLoggingEventProperty("exception-hresult", loggingEvent.ExceptionObject.HResult.ToString(), properties);
+                if (loggingEvent.ExceptionObject.Source != null) AddLoggingEventProperty("ExceptionSource", loggingEvent.ExceptionObject.Source, properties);
+                if (loggingEvent.ExceptionObject.StackTrace != null) AddLoggingEventProperty("ExceptionStackTrace", loggingEvent.ExceptionObject.StackTrace, properties);
+                AddLoggingEventProperty("ExceptionHResult", loggingEvent.ExceptionObject.HResult.ToString(), properties);
 
                 if (string.IsNullOrEmpty(loggingEvent.ExceptionObject.HelpLink))
                 {
 
-                    AddLoggingEventProperty("exception-help", string.Format("{0}{1}", "https://social.msdn.microsoft.com/Search/en-US?query=", loggingEvent.ExceptionObject.GetType().FullName), properties);
+                    AddLoggingEventProperty("ExceptionHelp", string.Format("{0}{1}", "https://social.msdn.microsoft.com/Search/en-US?query=", loggingEvent.ExceptionObject.GetType().FullName), properties);
                 }
                 else
                 {
-                    AddLoggingEventProperty("exception-help", loggingEvent.ExceptionObject.HelpLink, properties);    
+                    AddLoggingEventProperty("ExceptionHelp", loggingEvent.ExceptionObject.HelpLink, properties);    
                 }
 
                 
             }
-            AddLoggingEventProperty("user-name", loggingEvent.UserName, properties);
-            AddLoggingEventProperty("domain", loggingEvent.Domain, properties);
-            AddLoggingEventProperty("identity", loggingEvent.Identity, properties);
             if (loggingEvent.MessageObject != null)
             {
-                AddLoggingEventProperty("message", loggingEvent.MessageObject.ToString(), properties);    
+                AddLoggingEventProperty("Message", loggingEvent.MessageObject.ToString(), properties);    
             }
 
         }
