@@ -36,25 +36,40 @@ namespace ApplicationInsights.Log4Net
                 return true;
             }
         }
-        public new virtual void ActivateOptions()
+        public override void ActivateOptions()
         {
-            base.ActivateOptions();            
+            Enabled = !string.IsNullOrEmpty(InstrumentationKey);
+            if (Enabled)
+            {
+                telemetryClient = new TelemetryClient();
+                telemetryClient.Context.InstrumentationKey = InstrumentationKey;
+            }
+            else
+            {
+                this.Threshold = Level.Off;
+                System.Diagnostics.Debugger.Log(1, "InsightsLog4Net", "Insights Log4Net Appender is not enabled.  No InstrumentationKey was specified.");
+            }
+            base.ActivateOptions();
         }
+        public bool Enabled { get; private set; }
 
+        private TelemetryClient telemetryClient = null;
 
         protected override void Append(LoggingEvent loggingEvent)
         {
             try
             {
-                if (!string.IsNullOrEmpty(InstrumentationKey))
+                if (Enabled)
                 {
+                    CleanContext(telemetryClient);
                     var msg = loggingEvent.RenderedMessage ?? "Log4Net";
-                    var telemetryClient = new TelemetryClient();
-                    telemetryClient.Context.InstrumentationKey = InstrumentationKey;
+
                     ITelemetry telemetry = null;
                     if (loggingEvent.Level == Level.Fatal || loggingEvent.Level == Level.Error)
                     {
-                        telemetry = new ExceptionTelemetry(loggingEvent.ExceptionObject ?? new Exception(string.Format("{0} - {1}", loggingEvent.Level, msg)));
+                        telemetry =
+                            new ExceptionTelemetry(loggingEvent.ExceptionObject ??
+                                                   new Exception(string.Format("{0} - {1}", loggingEvent.Level, msg)));
                     }
                     else
                     {
@@ -69,8 +84,18 @@ namespace ApplicationInsights.Log4Net
             }
             catch (ArgumentNullException ex)
             {
-                throw new LogException(ex.Message, (Exception)ex);
+                throw new LogException(ex.Message, (Exception) ex);
             }
+        }
+
+        private void CleanContext(TelemetryClient client)
+        {
+            client.Context.Device.Id = null;
+            client.Context.Device.Language = null;
+            client.Context.User.AccountId = null;
+            client.Context.User.Id = null;
+            client.Context.User.UserAgent = null;
+            client.Context.Session.Id = null;
         }
 
 
