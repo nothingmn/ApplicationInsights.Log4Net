@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Reflection;
 using System.Text;
 using System.Threading;
 using Microsoft.ApplicationInsights;
@@ -14,6 +13,10 @@ namespace ApplicationInsights.Log4Net
 {
     public class InsightsAppender : AppenderSkeleton
     {
+        public bool Enabled { get; private set; }
+
+        private TelemetryClient _telemetryClient;
+
         /// <summary>
         /// Get/set The Application Insights instrumentationKey for your application.
         /// 
@@ -24,6 +27,7 @@ namespace ApplicationInsights.Log4Net
         /// 
         /// </remarks>
         public string InstrumentationKey { get; set; }
+
         /// <summary>
         /// The <see cref="T:Microsoft.ApplicationInsights.Log4NetAppender.ApplicationInsightsAppender"/> requires a layout.
         ///             This Appender converts the LoggingEvent it receives into a text string and requires the layout format string to do so.
@@ -36,55 +40,50 @@ namespace ApplicationInsights.Log4Net
                 return true;
             }
         }
+
         public override void ActivateOptions()
         {
             Enabled = !string.IsNullOrEmpty(InstrumentationKey);
             if (Enabled)
             {
-                telemetryClient = new TelemetryClient();
-                telemetryClient.Context.InstrumentationKey = InstrumentationKey;
+                _telemetryClient = new TelemetryClient
+                {
+                    Context =
+                    {
+                        InstrumentationKey = InstrumentationKey
+                    }
+                };
             }
             else
             {
-                this.Threshold = Level.Off;
+                Threshold = Level.Off;
                 System.Diagnostics.Debugger.Log(1, "InsightsLog4Net", "Insights Log4Net Appender is not enabled.  No InstrumentationKey was specified.");
             }
             base.ActivateOptions();
         }
-        public bool Enabled { get; private set; }
-
-        private TelemetryClient telemetryClient = null;
 
         protected override void Append(LoggingEvent loggingEvent)
         {
             try
             {
-                if (Enabled)
-                {
-                    CleanContext(telemetryClient);
-                    var msg = loggingEvent.RenderedMessage ?? "Log4Net";
+                if (!Enabled) return;
 
-                    ITelemetry telemetry = null;
-                    if (loggingEvent.Level == Level.Fatal || loggingEvent.Level == Level.Error)
-                    {
-                        telemetry =
-                            new ExceptionTelemetry(loggingEvent.ExceptionObject ??
-                                                   new Exception(string.Format("{0} - {1}", loggingEvent.Level, msg)));
-                    }
-                    else
-                    {
-                        telemetry = new TraceTelemetry(string.Format("{0} - {1}", loggingEvent.Level, msg));
-                    }
+                CleanContext(_telemetryClient);
+                var msg = loggingEvent.RenderedMessage ?? "Log4Net";
 
+                ITelemetry telemetry;
+                if (loggingEvent.Level == Level.Fatal || loggingEvent.Level == Level.Error)
+                    telemetry = new ExceptionTelemetry(loggingEvent.ExceptionObject ?? new Exception(string.Format("{0} - {1}", loggingEvent.Level, msg)));
+                else
+                    telemetry = new TraceTelemetry(string.Format("{0} - {1}", loggingEvent.Level, msg));
 
-                    this.BuildCustomProperties(loggingEvent, telemetry);
-                    BuildClientContext(telemetryClient, loggingEvent);
-                    telemetryClient.Track(telemetry);
-                }
+                BuildCustomProperties(loggingEvent, telemetry);
+                BuildClientContext(_telemetryClient, loggingEvent);
+                _telemetryClient.Track(telemetry);
             }
             catch (ArgumentNullException ex)
             {
-                throw new LogException(ex.Message, (Exception) ex);
+                throw new LogException(ex.Message, ex);
             }
         }
 
@@ -101,7 +100,7 @@ namespace ApplicationInsights.Log4Net
 
         private void BuildClientContext(TelemetryClient client, LoggingEvent loggingEvent)
         {
-            client.Context.Device.Id = System.Environment.MachineName;
+            client.Context.Device.Id = Environment.MachineName;
             client.Context.Device.Language = Thread.CurrentThread.CurrentCulture.EnglishName;            
             client.Context.User.AccountId = loggingEvent.UserName;
             client.Context.User.Id = loggingEvent.UserName;
@@ -135,8 +134,7 @@ namespace ApplicationInsights.Log4Net
 
         private static void AddLoggingEventProperty(string key, string value, IDictionary<string, string> metaData)
         {
-            if (value == null)
-                return;
+            if (value == null) return;
             metaData.Add(key, value);
         }
 
@@ -150,7 +148,7 @@ namespace ApplicationInsights.Log4Net
             AddLoggingEventProperty("LoggerName", loggingEvent.LoggerName, properties);
             AddLoggingEventProperty("LoggingLevel", loggingEvent.Level.ToString(), properties);
             AddLoggingEventProperty("ThreadName", loggingEvent.ThreadName, properties);
-            AddLoggingEventProperty("TimeStamp", loggingEvent.TimeStamp.ToString((IFormatProvider)CultureInfo.InvariantCulture), properties);
+            AddLoggingEventProperty("TimeStamp", loggingEvent.TimeStamp.ToString(CultureInfo.InvariantCulture), properties);
             AddLoggingEventProperty("UserName", loggingEvent.UserName, properties);
             AddLoggingEventProperty("UserId", loggingEvent.UserName, properties);
             AddLoggingEventProperty("Domain", loggingEvent.Domain, properties);
@@ -160,9 +158,8 @@ namespace ApplicationInsights.Log4Net
             {
                 properties.Add(p, log4net.ThreadContext.Properties[p].ToString());
             }
-
-
-            LocationInfo locationInformation = loggingEvent.LocationInformation;
+            
+            var locationInformation = loggingEvent.LocationInformation;
             if (locationInformation != null)
             {
                 AddLoggingEventProperty("ClassName", locationInformation.ClassName, properties);
@@ -174,47 +171,45 @@ namespace ApplicationInsights.Log4Net
             if (loggingEvent.ExceptionObject != null)
             {
                 AddLoggingEventProperty("ExceptionMessage", loggingEvent.ExceptionObject.Message, properties);
-                
-                if (loggingEvent.ExceptionObject.Data != null)
+                var sb = new StringBuilder();
+
+                foreach (var o in loggingEvent.ExceptionObject.Data)
                 {
-                    StringBuilder sb = new StringBuilder();
-                    foreach (var o in loggingEvent.ExceptionObject.Data)
-                    {
-                        sb.Append(string.Format("{0}\r\n", o));
-                    }
-                    var data = sb.ToString();
-                    if (!string.IsNullOrEmpty(data))
-                    {
-                        AddLoggingEventProperty("ExceptionData", data, properties);
-                    }
+                    sb.Append(string.Format("{0}\r\n", o));
                 }
+
+                var data = sb.ToString();
+                if (!string.IsNullOrEmpty(data))
+                {
+                    AddLoggingEventProperty("ExceptionData", data, properties);
+                }
+                
                 if (loggingEvent.ExceptionObject.TargetSite != null)
                 {
                     var site = string.Format("{0}.{1}", loggingEvent.ExceptionObject.TargetSite.ReflectedType, loggingEvent.ExceptionObject.TargetSite.Name);
-                    
                     AddLoggingEventProperty("ExceptionTargetSite", site, properties);
                 }
+
                 if (loggingEvent.ExceptionObject.Source != null) AddLoggingEventProperty("ExceptionSource", loggingEvent.ExceptionObject.Source, properties);
+
                 if (loggingEvent.ExceptionObject.StackTrace != null) AddLoggingEventProperty("ExceptionStackTrace", loggingEvent.ExceptionObject.StackTrace, properties);
+
                 AddLoggingEventProperty("ExceptionHResult", loggingEvent.ExceptionObject.HResult.ToString(), properties);
 
                 if (string.IsNullOrEmpty(loggingEvent.ExceptionObject.HelpLink))
                 {
-
                     AddLoggingEventProperty("ExceptionHelp", string.Format("{0}{1}", "https://social.msdn.microsoft.com/Search/en-US?query=", loggingEvent.ExceptionObject.GetType().FullName), properties);
                 }
                 else
                 {
                     AddLoggingEventProperty("ExceptionHelp", loggingEvent.ExceptionObject.HelpLink, properties);    
                 }
-
-                
             }
+
             if (loggingEvent.MessageObject != null)
             {
                 AddLoggingEventProperty("Message", loggingEvent.MessageObject.ToString(), properties);    
             }
-
         }
     }
 }

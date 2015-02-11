@@ -1,12 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using ApplicationInsights.Log4Net;
-using log4net;
 using log4net.Config;
-using log4net.Core;
 
 namespace TestApplication
 {
@@ -21,8 +15,8 @@ namespace TestApplication
                 
                 var logger = log4net.LogManager.GetLogger(typeof (Program));
                 log4net.ThreadContext.Properties["UserAgent"] = "some cool user agent goes here";
-                log4net.ThreadContext.Properties["UserId"] = System.Guid.NewGuid().ToString();
-                log4net.ThreadContext.Properties["SessionId"] = System.Guid.NewGuid().ToString();
+                log4net.ThreadContext.Properties["UserId"] = Guid.NewGuid().ToString();
+                log4net.ThreadContext.Properties["SessionId"] = Guid.NewGuid().ToString();
 
                 var exc = new DllNotFoundException("this is some random exception!");
                 for (int x = 6000; x <= 7000; x++)
