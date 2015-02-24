@@ -134,8 +134,12 @@ namespace ApplicationInsights.Log4Net
 
         private static void AddLoggingEventProperty(string key, string value, IDictionary<string, string> metaData)
         {
-            if (value == null) return;
-            metaData.Add(key, value);
+            if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(value)) return;
+
+            if (!metaData.ContainsKey(key))
+                metaData.Add(key, value);
+            else
+                metaData[key] = value;
         }
 
 
@@ -156,7 +160,7 @@ namespace ApplicationInsights.Log4Net
 
             foreach (var p in log4net.ThreadContext.Properties.GetKeys())
             {
-                properties.Add(p, log4net.ThreadContext.Properties[p].ToString());
+                AddLoggingEventProperty(p, log4net.ThreadContext.Properties[p].ToString(), properties);
             }
             
             var locationInformation = loggingEvent.LocationInformation;
